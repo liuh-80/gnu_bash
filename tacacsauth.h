@@ -21,6 +21,6 @@
 #if !defined (_TACACSAUTH_H_)
 #define _TACACSAUTH_H_
 
-extern int tacacs_authorization __P((char *),(char **));
+extern int tacacs_authorization __P((char *,char **));
 
 #endif /* _TACACSAUTH_H_ */
