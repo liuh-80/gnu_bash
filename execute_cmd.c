@@ -5222,18 +5222,6 @@ execute_disk_command (words, redirects, command_line, pipe_in, pipe_out,
       if (async)
 	interactive = old_interactive;
 
-
-	  /* Check with TACACS+ Authorization */
-	  if (subshell_level < 1)
-	  {
-		  // if this command not called from a shell script run tacacs validation, else the script already pass teh authorization.
-		  int authorization_result = tacacs_authorization(pathname);
-		  if (authorization_result != 0)
-		  {
-			  exit (EXECUTION_FAILURE);
-		  }
-	  }
-
       if (command == 0)
 	{
 	  hookf = find_function (NOTFOUND_HOOK);
@@ -5260,6 +5248,18 @@ execute_disk_command (words, redirects, command_line, pipe_in, pipe_out,
 	 leave it there, in the same format that the user used to
 	 type it in. */
       args = strvec_from_word_list (words, 0, 0, (int *)NULL);
+	  
+	  /* Check with TACACS+ Authorization before execute command */
+	  if (subshell_level < 1)
+	  {
+		  // if this command not called from a shell script run tacacs validation, else the script already pass teh authorization.
+		  int authorization_result = tacacs_authorization(pathname, args);
+		  if (authorization_result != 0)
+		  {
+			  exit (EXECUTION_FAILURE);
+		  }
+	  }
+	  
       exit (shell_execve (command, args, export_env));
     }
   else

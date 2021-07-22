@@ -313,10 +313,23 @@ build_auth_req(const char *user, const char *cmd, char **argv, int argc)
 /*
  * Tacacs authorization.
  */
-int tacacs_authorization (cmd)
+int tacacs_authorization (cmd, argv)
      char *cmd;
+     char **argv;
 {
 	char* current_user_name = current_user.user_name;
+	
+	internal_warning ("Authorization parameters:\n");
+	internal_warning ("    Command full path: %s\n", cmd);
+	internal_warning ("    Parameters:\n");
+	char **parameter_array_pointer = argv;
+	while (*parameter_array_pointer != 0) {
+		// output parameter
+		internal_warning ("        %s", *parameter_array_pointer);
+		
+		// move to next parameter
+		parameter_array_pointer++;
+	}
 	
     tacplus_config(configfile, 0);
 	
