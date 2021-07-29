@@ -64,6 +64,12 @@ extern int initialize_job_control __P((int));
 extern int get_tty_state __P((void));
 #endif /* JOB_CONTROL */
 
+
+#if defined (BASH_PLUGIN)
+#include "plugin.h"
+#endif /* BASH_PLUGIN */
+
+
 #include "input.h"
 #include "execute_cmd.h"
 #include "findcmd.h"
@@ -564,6 +570,10 @@ main (argc, argv, env)
   /* Now we run the shopt_alist and process the options. */
   if (shopt_alist)
     run_shopt_alist ();
+
+#if defined (BASH_PLUGIN)
+	load_plugins ();
+#endif /* BASH_PLUGIN */
 
   /* From here on in, the shell must be a normal functioning shell.
      Variables from the environment are expected to be set, etc. */

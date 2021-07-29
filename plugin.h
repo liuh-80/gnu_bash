@@ -25,6 +25,9 @@
 
 #if defined (BASH_PLUGIN)
 
+/* System-wide bash plugin configuration. */
+#define SYS_BASH_PLUGIN "/etc/bash.plugin"
+
 typedef enum { T_COMMAND } plugin_type_t;
 
 typedef struct bash_plugin_conf
