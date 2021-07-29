@@ -2978,6 +2978,7 @@ opt_extglob_default=no
 opt_dircomplete_expand_default=no
 opt_globascii_default=no
 opt_function_import=yes
+opt_bash_plugin=yes
 
 opt_static_link=no
 opt_profiling=no
@@ -3179,6 +3180,11 @@ fi
 # Check whether --enable-xpg-echo-default was given.
 if test "${enable_xpg_echo_default+set}" = set; then :
   enableval=$enable_xpg_echo_default; opt_xpg_echo=$enableval
+fi
+
+# Check whether --enable-bash-plugin was given.
+if test "${enable-bash-plugin+set}" = set; then :
+  enableval=$enable-bash-plugin; opt_bash_plugin=$enableval
 fi
 
 
