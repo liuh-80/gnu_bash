@@ -5249,21 +5249,10 @@ execute_disk_command (words, redirects, command_line, pipe_in, pipe_out,
 	 type it in. */
       args = strvec_from_word_list (words, 0, 0, (int *)NULL);
 	  
-	  /* Check with TACACS+ Authorization before execute command */
-		const char* shell_level_str = get_string_value ("SHLVL");
-		const int shell_level = atoi (shell_level_str);
-		internal_warning ("Current shell level: %d\n", shell_level);
-		// hardcode to 4 for test, this should be <= 2
-		// login bash (1) => bash window (2) -> current custom bash (3) -> anyother shell start by script (>=4)
-		if (shell_level < 4)
-		{
-		  // if this command not called from a shell script run tacacs validation, else the script already pass teh authorization.
-		  int authorization_result = tacacs_authorization(command, args);
-		  if (authorization_result != 0)
-		  {
-			  exit (EXECUTION_FAILURE);
-		  }
-		}
+	  
+#if defined (BASH_PLUGIN)
+	  invoke_plugin_on_shell_execve (command, args);
+#endif /* BASH_PLUGIN */
 	  
       exit (shell_execve (command, args, export_env));
     }
