@@ -801,6 +801,11 @@ main (argc, argv, env)
   /* Read commands until exit condition. */
   reader_loop ();
   exit_shell (last_command_exit_value);
+  
+
+#if defined (BASH_PLUGIN)
+	free_plugins ();
+#endif /* BASH_PLUGIN */
 }
 
 static int
