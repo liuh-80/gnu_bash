@@ -112,21 +112,21 @@ extern int errno;
 
 
 /* Load all plugins。 */
-int
+static void
 load_plugins ()
 {
     internal_warning ("load_plugins\n");
 }
 
 /* Free all plugins */
-int
+static void
 free_plugins ()
 {
     internal_warning ("free_plugins\n");
 }
 
 /* Invoke plugins before shell execve */
-int
+static void
 invoke_plugin_on_shell_execve (cmd, argv)
      char *cmd;
      char **argv;
