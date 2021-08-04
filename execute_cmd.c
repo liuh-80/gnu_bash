@@ -51,6 +51,10 @@
 #  include <sys/times.h>
 #endif
 
+#if defined (BASH_PLUGIN)
+#include "plugin.h"
+#endif /* BASH_PLUGIN */
+
 #include <errno.h>
 
 #if !defined (errno)

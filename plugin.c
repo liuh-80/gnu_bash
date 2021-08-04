@@ -77,7 +77,10 @@ extern int errno;
 #include "pathexp.h"
 #include "hashcmd.h"
 #include "tacacsauth.h"
+
+#if defined (BASH_PLUGIN)
 #include "plugin.h"
+#endif /* BASH_PLUGIN */
 
 #if defined (COND_COMMAND)
 #  include "test.h"

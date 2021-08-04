@@ -23,8 +23,6 @@
 
 #include "stdc.h"
 
-#if defined (BASH_PLUGIN)
-
 /* System-wide bash plugin configuration. */
 #define SYS_BASH_PLUGIN "/etc/bash.plugin"
 
@@ -44,7 +42,5 @@ extern void free_plugins __P((void));
 
 /* Invoke plugins before shell execve */
 extern void invoke_plugin_on_shell_execve __P((char *,char **));
-
-#endif /* BASH_PLUGIN */
 
 #endif /* _PLUGIN_H_ */

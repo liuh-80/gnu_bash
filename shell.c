@@ -46,6 +46,10 @@
 #  include <unistd.h>
 #endif
 
+#if defined (BASH_PLUGIN)
+#include "plugin.h"
+#endif /* BASH_PLUGIN */
+
 #include "bashintl.h"
 
 #define NEED_SH_SETLINEBUF_DECL		/* used in externs.h */
