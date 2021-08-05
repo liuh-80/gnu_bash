@@ -25,6 +25,7 @@
 #endif /* _AIX && RISC6000 && !__GNUC__ */
 
 #include <stdio.h>
+#include <dlfcn.h>
 #include "chartypes.h"
 #include "bashtypes.h"
 #if !defined (_MINIX) && defined (HAVE_SYS_FILE_H)
@@ -65,7 +66,8 @@ extern int errno;
 
 #include "memalloc.h"
 #include "shell.h"
-#include <y.tab.h>	/* use <...> so we pick it up from the build directory */
+#include <y.tab.h>    /* use <...> so we pick it up from the build directory */
+#include "error.h"
 #include "flags.h"
 #include "builtins.h"
 #include "hashlib.h"
@@ -87,7 +89,7 @@ extern int errno;
 #endif
 
 #include "builtins/common.h"
-#include "builtins/builtext.h"	/* list of builtins */
+#include "builtins/builtext.h"    /* list of builtins */
 
 #include "builtins/getopt.h"
 
@@ -107,22 +109,241 @@ extern int errno;
 #endif
 
 #if defined (HAVE_MBSTR_H) && defined (HAVE_MBSCHR)
-#  include <mbstr.h>		/* mbschr */
+#  include <mbstr.h>        /* mbschr */
 #endif
 
+/* plugin on_shell_execve function handle type */
+typedef int on_shell_execve_t (char *cmd, char **argv);
+
+/* plugin plugin_init function handle type */
+typedef int plugin_init_t ();
+
+/* plugin plugin_uninit function handle type */
+typedef int plugin_uninit_t ();
+
+/* plugin on_shell_execve function name */
+static const char *on_shell_execve_function_name = "on_shell_execve";
+
+/* plugin plugin_init function name */
+static const char *plugin_init_function_name = "plugin_init";
+
+/* plugin plugin_uninit function name */
+static const char *plugin_uninit_function_name = "plugin_uninit";
+
+/* Plugin list node. */
+typedef struct plugin_node {
+    
+    /* Next plugin pointer. */
+  struct plugin_node *next;
+  
+    /* Plugin library handle. */
+  void *plugin_handle;
+  
+    /* Plugin on_shell_execve function handle. */
+  on_shell_execve_t *on_shell_execve;
+  
+    /* Plugin plugin_init function handle. */
+  plugin_init_t *plugin_init;
+  
+    /* Plugin plugin_uninit function handle. */
+  plugin_uninit_t *plugin_uninit;
+} PLUGIN_NODE;
+
+/* plugin handle for test */
+static PLUGIN_NODE *global_plugin_handle = NULL;
+
+/* Load plugin by plugin path */
+static void
+append_plugin(
+        void *plugin_handle,
+        on_shell_execve_t *on_shell_execve,
+        plugin_init_t *plugin_init,
+        plugin_uninit_t *plugin_uninit)
+{
+    /* Create and initialize new plugin */
+    PLUGIN_NODE *new_plugin_node = (PLUGIN_NODE*)malloc(sizeof(PLUGIN_NODE));
+    new_plugin_node->next = NULL;
+    new_plugin_node->plugin_handle = plugin_handle;
+    new_plugin_node->on_shell_execve = on_shell_execve;
+    new_plugin_node->plugin_init = plugin_init;
+    new_plugin_node->plugin_uninit = plugin_uninit;
+    
+    /* Walk to last plugin */
+    PLUGIN_NODE **current_plugin_node = &global_plugin_handle;
+    while (*current_plugin_node != NULL) {
+        current_plugin_node = &((*current_plugin_node)->next);
+    }
+    
+    /* append new plugin to tail node */
+    *current_plugin_node = new_plugin_node;
+}
+
+
+/* Load plugin by plugin path */
+static void
+try_load_plugin_by_path(const char *plugin_path)
+{
+    /* Plugin handle */
+    void *plugin_handle;
+    if ( (plugin_handle = dlopen(plugin_path, RTLD_LAZY)) == NULL) {
+#ifdef DEBUG
+        itrace("Plugin: can't load plugin %s: %s\n", plugin_path, dlerror());
+#endif
+        return;
+    }
+
+    /* Check if plugin support shell execve method */
+    on_shell_execve_t* plugin_on_shell_execve_handle = dlsym(plugin_handle, on_shell_execve_function_name);
+    if (dlerror() != NULL) {
+        dlclose(plugin_handle);
+
+#ifdef DEBUG
+        itrace("Plugin: can't find on_shell_execve function %s: %s\n", plugin_path, dlerror());
+#endif
+        return;
+    }
+    
+
+    /* Check if plugin support un-initialization method */
+    plugin_uninit_t* plugin_uninit_handle = dlsym(plugin_handle, plugin_uninit_function_name);
+    if (dlerror() != NULL) {
+        dlclose(plugin_handle);
+
+#ifdef DEBUG
+        itrace("Plugin: can't find plugin_uninit function %s: %s\n", plugin_path, dlerror());
+#endif
+        return;
+    }
+
+    /* Check if plugin support initialization method */
+    plugin_init_t* plugin_init_handle = dlsym(plugin_handle, plugin_init_function_name);
+    if (dlerror() != NULL) {
+        dlclose(plugin_handle);
+
+#ifdef DEBUG
+        itrace("Plugin: can't find plugin_init function %s: %s\n", plugin_path, dlerror());
+#endif
+        return;
+    }
+    else {
+        /* Initialize plugin */
+        plugin_init_handle();
+    }
+
+    /* Add plugin to plugin list */
+    append_plugin(plugin_handle,
+                    plugin_on_shell_execve_handle,
+                    plugin_init_handle,
+                    plugin_uninit_handle);
+    
+#ifdef DEBUG
+    itrace("Plugin: plugin %s loaded\n", plugin_path);
+#endif
+}
+
+/* Load plugin by config file */
+static void
+load_plugin_by_config(const char *config_filename)
+{
+    FILE *config_file;
+    char buffer[256];
+
+    config_file = fopen(config_filename, "r");
+    if(config_file == NULL) {
+#ifdef DEBUG
+            itrace("Plugin: can't open plugin config file %s: %s\n", config_filename, strerror(errno));
+#endif
+        return;
+    }
+
+    while(fgets(buffer, sizeof buffer, config_file)) {
+        if(*buffer == '#' || isspace(*buffer)) {
+            /* ignore comments or white space. */
+            continue; 
+        }
+        
+        /* read to first whitespace. */
+        strtok(buffer, " \t\n\r\f"); 
+
+        if(!strncmp(buffer, "plugin=", 7)) {
+            /* read plugin path. */
+            char* plugin_path = strtok(buffer+7, " \t\n\r\f"); 
+#ifdef DEBUG
+            itrace("Plugin: load plugin: %s\n", plugin_path);
+#endif
+            try_load_plugin_by_path(plugin_path);
+        }
+#ifdef DEBUG
+        else {
+            /* output debug message. */
+            itrace("Plugin: unrecognized parameter: %s\n", buffer);
+        }
+#endif
+    }
+
+    fclose(config_file);
+}
+
+/* Free loaded plugins */
+static void
+free_loaded_plugins()
+{
+    if ( global_plugin_handle == NULL) {
+        return;
+    }
+    
+    /* Walk to last plugin */
+    PLUGIN_NODE **current_plugin_node = &global_plugin_handle;
+    while (*current_plugin_node != NULL) {
+        
+        /* Unload plugin */
+        (*current_plugin_node)->plugin_uninit();
+        dlclose((*current_plugin_node)->plugin_handle);
+        
+        /* Continue with next pligin */
+        current_plugin_node = &((*current_plugin_node)->next);
+    }
+}
+
+/* Invoke loaded plugins */
+static void
+invoke_loaded_plugins (cmd, argv)
+     char *cmd;
+     char **argv;
+{
+    if ( global_plugin_handle == NULL) {
+        return;
+    }
+
+    /* Walk to last plugin */
+    PLUGIN_NODE **current_plugin_node = &global_plugin_handle;
+    while (*current_plugin_node != NULL) {
+
+        /* Call plugin method */
+        int plugin_error_code = (*current_plugin_node)->on_shell_execve(cmd, argv);
+        if (plugin_error_code != 0) {
+#ifdef DEBUG
+            itrace("Plugin: on_execve return error: %d\n", plugin_error_code);
+#endif
+        }
+        
+        /* Continue with next pligin */
+        current_plugin_node = &((*current_plugin_node)->next);
+    }
+}
 
 /* Load all plugins。 */
 void
 load_plugins ()
 {
-    internal_warning ("load_plugins\n");
+    load_plugin_by_config("/etc/bash_plugins.conf");
 }
 
 /* Free all plugins */
 void
 free_plugins ()
 {
-    internal_warning ("free_plugins\n");
+    free_loaded_plugins();
 }
 
 /* Invoke plugins before shell execve */
@@ -131,5 +352,5 @@ invoke_plugin_on_shell_execve (cmd, argv)
      char *cmd;
      char **argv;
 {
-    internal_warning ("invoke_plugin_on_shell_execve\n");
+    invoke_loaded_plugins(cmd, argv);
 }
