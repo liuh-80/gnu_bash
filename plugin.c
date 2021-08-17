@@ -113,7 +113,7 @@ extern int errno;
 #endif
 
 /* plugin on_shell_execve function handle type */
-typedef int on_shell_execve_t (char *cmd, char **argv);
+typedef int on_shell_execve_t (char *user, char *cmd, char **argv);
 
 /* plugin plugin_init function handle type */
 typedef int plugin_init_t ();
@@ -150,10 +150,10 @@ typedef struct plugin_node {
 } PLUGIN_NODE;
 
 /* plugin handle for test */
-static PLUGIN_NODE *global_plugin_handle = NULL;
+static PLUGIN_NODE *global_plugin_list = NULL;
 
 /* Load plugin by plugin path */
-static void
+void
 append_plugin(
         void *plugin_handle,
         on_shell_execve_t *on_shell_execve,
@@ -169,7 +169,7 @@ append_plugin(
     new_plugin_node->plugin_uninit = plugin_uninit;
     
     /* Walk to last plugin */
-    PLUGIN_NODE **current_plugin_node = &global_plugin_handle;
+    PLUGIN_NODE **current_plugin_node = &global_plugin_list;
     while (*current_plugin_node != NULL) {
         current_plugin_node = &((*current_plugin_node)->next);
     }
@@ -180,7 +180,7 @@ append_plugin(
 
 
 /* Load plugin by plugin path */
-static void
+void
 try_load_plugin_by_path(const char *plugin_path)
 {
     /* Plugin handle */
@@ -242,7 +242,7 @@ try_load_plugin_by_path(const char *plugin_path)
 }
 
 /* Load plugin by config file */
-static void
+void
 load_plugin_by_config(const char *config_filename)
 {
     FILE *config_file;
@@ -285,15 +285,15 @@ load_plugin_by_config(const char *config_filename)
 }
 
 /* Free loaded plugins */
-static void
+void
 free_loaded_plugins()
 {
-    if ( global_plugin_handle == NULL) {
+    if ( global_plugin_list == NULL) {
         return;
     }
     
     /* Walk to last plugin */
-    PLUGIN_NODE **current_plugin_node = &global_plugin_handle;
+    PLUGIN_NODE **current_plugin_node = &global_plugin_list;
     while (*current_plugin_node != NULL) {
         
         /* Unload plugin */
@@ -306,30 +306,35 @@ free_loaded_plugins()
 }
 
 /* Invoke loaded plugins */
-static void
-invoke_loaded_plugins (cmd, argv)
+int
+invoke_loaded_plugins (user, cmd, argv)
+     char *user;
      char *cmd;
      char **argv;
 {
-    if ( global_plugin_handle == NULL) {
+    if (global_plugin_list == NULL) {
         return;
     }
 
     /* Walk to last plugin */
-    PLUGIN_NODE **current_plugin_node = &global_plugin_handle;
+    PLUGIN_NODE **current_plugin_node = &global_plugin_list;
     while (*current_plugin_node != NULL) {
 
         /* Call plugin method */
-        int plugin_error_code = (*current_plugin_node)->on_shell_execve(cmd, argv);
+        int plugin_error_code = (*current_plugin_node)->on_shell_execve(user, cmd, argv);
         if (plugin_error_code != 0) {
 #ifdef DEBUG
             itrace("Plugin: on_execve return error: %d\n", plugin_error_code);
 #endif
+            /* Exit when plugin failed */
+            return plugin_error_code;
         }
         
         /* Continue with next pligin */
         current_plugin_node = &((*current_plugin_node)->next);
     }
+    
+    return 0;
 }
 
 /* Load all plugins。 */
@@ -347,10 +352,11 @@ free_plugins ()
 }
 
 /* Invoke plugins before shell execve */
-void
-invoke_plugin_on_shell_execve (cmd, argv)
+int
+invoke_plugin_on_shell_execve (user, cmd, argv)
+     char *user;
      char *cmd;
      char **argv;
 {
-    invoke_loaded_plugins(cmd, argv);
+    return invoke_loaded_plugins(user, cmd, argv);
 }

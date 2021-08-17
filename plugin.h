@@ -41,6 +41,6 @@ extern void load_plugins __P((void));
 extern void free_plugins __P((void));
 
 /* Invoke plugins before shell execve */
-extern void invoke_plugin_on_shell_execve __P((char *,char **));
+extern int invoke_plugin_on_shell_execve __P((char *, char *, char **));
 
 #endif /* _PLUGIN_H_ */
