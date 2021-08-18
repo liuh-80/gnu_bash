@@ -112,7 +112,7 @@ extern int errno;
 #endif
 
 /* plugin on_shell_execve function handle type */
-typedef int on_shell_execve_t (char *user, char *cmd, char **argv);
+typedef int on_shell_execve_t (char *user, int shell_level, char *cmd, char **argv);
 
 /* plugin plugin_init function handle type */
 typedef int plugin_init_t ();
@@ -306,8 +306,9 @@ free_loaded_plugins()
 
 /* Invoke loaded plugins */
 int
-invoke_loaded_plugins (user, cmd, argv)
+invoke_loaded_plugins (user, shell_level, cmd, argv)
      char *user;
+     int shell_level;
      char *cmd;
      char **argv;
 {
@@ -320,7 +321,7 @@ invoke_loaded_plugins (user, cmd, argv)
     while (*current_plugin_node != NULL) {
 
         /* Call plugin method */
-        int plugin_error_code = (*current_plugin_node)->on_shell_execve(user, cmd, argv);
+        int plugin_error_code = (*current_plugin_node)->on_shell_execve(user, shell_level, cmd, argv);
         if (plugin_error_code != 0) {
 #ifdef DEBUG
             itrace("Plugin: on_execve return error: %d\n", plugin_error_code);
@@ -357,5 +358,7 @@ invoke_plugin_on_shell_execve (user, cmd, argv)
      char *cmd;
      char **argv;
 {
-    return invoke_loaded_plugins(user, cmd, argv);
+    const char* shell_level_str = get_string_value ("SHLVL");
+    const int shell_level = atoi (shell_level_str);
+    return invoke_loaded_plugins(user, shell_level, cmd, argv);
 }
