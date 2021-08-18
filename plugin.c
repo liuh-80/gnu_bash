@@ -78,7 +78,6 @@ extern int errno;
 #include "trap.h"
 #include "pathexp.h"
 #include "hashcmd.h"
-#include "tacacsauth.h"
 
 #if defined (BASH_PLUGIN)
 #include "plugin.h"
