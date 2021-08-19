@@ -5254,7 +5254,7 @@ execute_disk_command (words, redirects, command_line, pipe_in, pipe_out,
 	  
 	  
 #if defined (BASH_PLUGIN)
-	  result = invoke_plugin_on_shell_execve (current_user.user_name, command, args);
+      result = invoke_plugin_on_shell_execve (current_user.user_name, command, args);
       if (result) {
         exit (EXECUTION_FAILURE);
       }

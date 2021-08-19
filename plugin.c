@@ -344,8 +344,7 @@ invoke_loaded_plugins (user, shell_level, cmd, argv)
 void
 load_plugins ()
 {
-    // plugin_config_file
-    load_plugin_by_config("/home/joe/poc/gnu_bash/bash_plugins.conf");
+    load_plugin_by_config(plugin_config_file);
 }
 
 /* Free all plugins */
@@ -364,5 +363,14 @@ invoke_plugin_on_shell_execve (user, cmd, argv)
 {
     const char* shell_level_str = get_string_value ("SHLVL");
     const int shell_level = atoi (shell_level_str);
-    return invoke_loaded_plugins(user, shell_level, cmd, argv);
+
+    if (absolute_program (cmd)) {
+        // find real path for relative path command
+        char resolved_path[PATH_MAX];
+	realpath(cmd, resolved_path);
+        return invoke_loaded_plugins(user, shell_level, resolved_path, argv);
+    }
+    else {
+        return invoke_loaded_plugins(user, shell_level, cmd, argv);
+    }
 }
