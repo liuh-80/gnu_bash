@@ -111,6 +111,9 @@ extern int errno;
 #  include <mbstr.h>        /* mbschr */
 #endif
 
+/* plugin configration file */
+const char *plugin_config_file = "/etc/bash_plugins.conf";
+
 /* plugin on_shell_execve function handle type */
 typedef int on_shell_execve_t (char *user, int shell_level, char *cmd, char **argv);
 
@@ -341,7 +344,8 @@ invoke_loaded_plugins (user, shell_level, cmd, argv)
 void
 load_plugins ()
 {
-    load_plugin_by_config("/etc/bash_plugins.conf");
+    // plugin_config_file
+    load_plugin_by_config("/home/joe/poc/gnu_bash/bash_plugins.conf");
 }
 
 /* Free all plugins */
