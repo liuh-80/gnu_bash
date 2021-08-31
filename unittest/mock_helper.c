@@ -7,8 +7,19 @@
 #include <CUnit/Basic.h>
 #include "mock_helper.h"
 
+// define BASH_PLUGIN_UT_DEBUG to output UT debug message.
+//#define BASH_PLUGIN_UT_DEBUG
+#if defined (BASH_PLUGIN_UT_DEBUG)
+#       define debug_printf printf
+#else
+#       define debug_printf
+#endif
+
 /* itrace buffer */
 char mock_itrace_message_buffer[1024];
+
+/* bash run command buffer */
+char mock_onshell_execve_command_buffer[1024];
 
 /* plugin handles. */
 void* mock_plugin_handle = (void*)TEST_MOCK_PLUGIN_HANDLE;
@@ -74,9 +85,21 @@ int mock_plugin_uninit()
   set_plugin_init_status(PLUGIN_NOT_INITIALIZE);
 }
 
+/* MOCK on_shell_execve method*/
+int mock_on_shell_execve (char *user, int shell_level, char *cmd, char **argv)
+{
+  // set mock command data to buffer for UT.
+  memset(mock_onshell_execve_command_buffer, 0, sizeof(mock_onshell_execve_command_buffer));
+
+  snprintf(mock_onshell_execve_command_buffer, sizeof(mock_onshell_execve_command_buffer), "on_shell_execve: user: %s, level: %d, command: %s, argv: %p\n", user, shell_level, cmd, argv);
+
+  debug_printf("MOCK: mock_on_shell_execve: %s\n", mock_onshell_execve_command_buffer);
+}
+
 /* MOCK dlopen*/
 void *dlopen(const char *filename, int flags)
 {
+	debug_printf("MOCK: dlopen: %s\n", filename);
   if (TEST_SCEANRIO_PLUGIN_NOT_EXIT == test_scenario)
   {
 	  // return null when plugin not exist
@@ -92,6 +115,7 @@ void *dlopen(const char *filename, int flags)
 /* MOCK dlclose*/
 int dlclose(void *handle)
 {
+	debug_printf("MOCK: dlclose: %p\n", handle);
 	// check if the close handle match the opened handle
 	CU_ASSERT_EQUAL(handle, mock_plugin_handle);
 }
@@ -99,6 +123,7 @@ int dlclose(void *handle)
 /* MOCK dlsym*/
 void *dlsym(void *restrict handle, const char *restrict symbol)
 {
+	debug_printf("MOCK: dlsym: %p, %s\n", handle, symbol);
 	mock_dlerror = NULL;
 	switch (test_scenario)
 	{
@@ -134,6 +159,11 @@ void *dlsym(void *restrict handle, const char *restrict symbol)
 				// return mock method handle so plugin framework will call it to initialize
 				return mock_plugin_uninit;
 			}
+			else if (strcmp(symbol, "on_shell_execve") == 0)
+			{
+				// return mock method handle so plugin framework will call it to initialize
+				return mock_on_shell_execve;
+			}
 	}
 	
 	return mock_plugin_default_function_handle;
@@ -148,11 +178,13 @@ char *dlerror(void)
 /* MOCK get_string_value*/
 char *get_string_value(const char * str)
 {
+	return "1";
 }
 
 /* MOCK absolute_program*/
 int absolute_program (const char * str)
 {
+	return 0;
 }
 
 /* MOCK itrace*/
@@ -163,17 +195,17 @@ void itrace (const char * format, ...)
 
   va_list args;
   va_start(args, format);
-  
   // save message to buffer to UT check later
   vsnprintf(mock_itrace_message_buffer, sizeof(mock_itrace_message_buffer), format, args);
-
   va_end(args);
+  debug_printf("MOCK: itrace: %s\n", mock_itrace_message_buffer);
 }
 
 /* MOCK malloc method*/
 void* mock_malloc (size_t size)
 {
 	memory_allocate_count++;
+	debug_printf("MOCK: malloc memory count: %d\n", memory_allocate_count);
 	return malloc(size);
 }
 
@@ -181,5 +213,6 @@ void* mock_malloc (size_t size)
 void mock_free (void* ptr)
 {
 	memory_allocate_count--;
+	debug_printf("MOCK: free memory count: %d\n", memory_allocate_count);
 	free(ptr);
 }

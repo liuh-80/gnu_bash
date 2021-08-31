@@ -40,6 +40,9 @@ extern PLUGIN_NODE *global_plugin_list;
 /* itrace buffer */
 extern char mock_itrace_message_buffer[1024];
 
+/* bash run command buffer */
+extern char mock_onshell_execve_command_buffer[1024];
+
 /* Set test scenario for test*/
 void set_test_scenario(int scenario);
 

@@ -149,15 +149,27 @@ append_plugin(
     new_plugin_node->on_shell_execve = on_shell_execve;
     new_plugin_node->plugin_init = plugin_init;
     new_plugin_node->plugin_uninit = plugin_uninit;
+
+#ifdef DEBUG
+    itrace("Plugin: append plugin node %p to global list %p\n", new_plugin_node, global_plugin_list);
+#endif
     
-    /* Walk to last plugin */
+    /* Find the pointer to the latest plugin node's 'next' field */
     PLUGIN_NODE **current_plugin_node = &global_plugin_list;
     while (*current_plugin_node != NULL) {
         current_plugin_node = &((*current_plugin_node)->next);
+		
+#ifdef DEBUG
+		itrace("Plugin: founded next plugin node: %p\n", *current_plugin_node);
+#endif
     }
     
     /* append new plugin to tail node */
     *current_plugin_node = new_plugin_node;
+	
+#ifdef DEBUG
+    itrace("Plugin: append new plugin node %p to %p\n", new_plugin_node, current_plugin_node);
+#endif
 }
 
 
@@ -270,26 +282,34 @@ load_plugin_by_config(const char *config_filename)
 void
 free_loaded_plugins()
 {
-    if ( global_plugin_list == NULL) {
+    if (global_plugin_list == NULL) {
         return;
     }
+	
+#ifdef DEBUG
+    itrace("Plugin: start free plugin from global list %p\n", global_plugin_list);
+#endif
 
     /* Walk to last plugin */
-    PLUGIN_NODE **current_plugin_node = &global_plugin_list;
-    while (*current_plugin_node != NULL) {
+    PLUGIN_NODE *next_plugin_node = global_plugin_list;
+    while (next_plugin_node != NULL) {
 
         /* Unload plugin */
-        (*current_plugin_node)->plugin_uninit();
-        dlclose((*current_plugin_node)->plugin_handle);
+        next_plugin_node->plugin_uninit();
+        dlclose(next_plugin_node->plugin_handle);
 
         /* Continue with next pligin */
-		PLUGIN_NODE* current_plugin_node_memory = *current_plugin_node;
-        current_plugin_node = &((*current_plugin_node)->next);
+		PLUGIN_NODE* current_plugin_node_memory = next_plugin_node;
+        next_plugin_node = next_plugin_node->next;
 
-		/* Free plugin node memory */
+#ifdef DEBUG
+		itrace("Plugin: next plugin address %p\n", next_plugin_node);
+#endif
+
+		/* Free plugin node memory, this may also reset all allocated memory depends on c lib implementation */
 		free(current_plugin_node_memory);
     }
-	
+
     /* Reset plugin list */
 	global_plugin_list = NULL;
 }
@@ -305,13 +325,17 @@ invoke_loaded_plugins (user, shell_level, cmd, argv)
     if (global_plugin_list == NULL) {
         return 0;
     }
+	
+#ifdef DEBUG
+    itrace("Plugin: start invoke plugin from global list %p\n", global_plugin_list);
+#endif
 
     /* Walk to last plugin */
-    PLUGIN_NODE **current_plugin_node = &global_plugin_list;
-    while (*current_plugin_node != NULL) {
+    PLUGIN_NODE *next_plugin_node = global_plugin_list;
+    while (next_plugin_node != NULL) {
 
         /* Call plugin method */
-        int plugin_error_code = (*current_plugin_node)->on_shell_execve(user, shell_level, cmd, argv);
+        int plugin_error_code = next_plugin_node->on_shell_execve(user, shell_level, cmd, argv);
         if (plugin_error_code != 0) {
 #ifdef DEBUG
             itrace("Plugin: on_execve return error: %d\n", plugin_error_code);
@@ -321,7 +345,11 @@ invoke_loaded_plugins (user, shell_level, cmd, argv)
         }
         
         /* Continue with next pligin */
-        current_plugin_node = &((*current_plugin_node)->next);
+        next_plugin_node = next_plugin_node->next;
+		
+#ifdef DEBUG
+		itrace("Plugin: next plugin address %p\n", next_plugin_node);
+#endif
     }
     
     return 0;
