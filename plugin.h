@@ -21,7 +21,7 @@
 #if !defined (_PLUGIN_H_)
 #define _PLUGIN_H_
 
-#include "stdc.h"
+#include <stdc.h>
 
 /* System-wide bash plugin configuration. */
 #define SYS_BASH_PLUGIN "/etc/bash.plugin"

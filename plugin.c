@@ -316,7 +316,7 @@ invoke_loaded_plugins (user, shell_level, cmd, argv)
      char **argv;
 {
     if (global_plugin_list == NULL) {
-        return;
+        return 0;
     }
 
     /* Walk to last plugin */
@@ -367,7 +367,10 @@ invoke_plugin_on_shell_execve (user, cmd, argv)
     if (absolute_program (cmd)) {
         // find real path for relative path command
         char resolved_path[PATH_MAX];
-	realpath(cmd, resolved_path);
+		
+		// real_path_buffer should not free here because we pass resolved_path as parameter.
+	    char* real_path_buffer = realpath(cmd, resolved_path);
+		
         return invoke_loaded_plugins(user, shell_level, resolved_path, argv);
     }
     else {

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <CUnit/CUnit.h>
 #include <CUnit/Basic.h>
+#include "plugin.h"
 
 int clean_up() {
   printf("Suite is cleaned up.\n");
@@ -11,6 +12,11 @@ int clean_up() {
 int start_up() {
   printf("Suite is started up.\n");
   return 0;
+}
+
+
+void testcase_try_load_plugin_by_path() {
+	try_load_plugin_by_path("./testplugin.so");
 }
 
 void test_plugin() {
@@ -44,7 +50,7 @@ int main(void) {
     return CU_get_error();
   }
 
-  if (!CU_add_test(ste, "Lest plugin()...", test_plugin)) {
+  if (!CU_add_test(ste, "Test try_load_plugin_by_path()...", testcase_try_load_plugin_by_path)) {
     CU_cleanup_registry();
     return CU_get_error();
   }
