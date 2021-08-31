@@ -24,6 +24,15 @@
   #pragma alloca
 #endif /* _AIX && RISC6000 && !__GNUC__ */
 
+// disable bash memory management when build for UT, PTR_T defined in xmalloc.h, define here for disable warning
+#if defined (BASH_PLUGIN_UT)
+#        define _XMALLOC_H_
+#        define PTR_T	void *
+#        define malloc	mock_malloc
+#        define free	mock_free
+#else
+#endif
+
 #include <stdio.h>
 #include <dlfcn.h>
 #include "chartypes.h"
@@ -64,7 +73,6 @@ extern int errno;
 #include "bashansi.h"
 #include "bashintl.h"
 
-#include "memalloc.h"
 #include "shell.h"
 #include <y.tab.h>    /* use <...> so we pick it up from the build directory */
 #include "error.h"
@@ -79,6 +87,7 @@ extern int errno;
 #include "pathexp.h"
 #include "hashcmd.h"
 
+
 #if defined (BASH_PLUGIN)
 #include "plugin.h"
 #endif /* BASH_PLUGIN */
@@ -88,7 +97,6 @@ extern int errno;
 #endif
 
 #include "builtins/common.h"
-#include "builtins/builtext.h"    /* list of builtins */
 
 #include "builtins/getopt.h"
 
@@ -114,15 +122,6 @@ extern int errno;
 /* plugin configration file */
 const char *plugin_config_file = "/etc/bash_plugins.conf";
 
-/* plugin on_shell_execve function handle type */
-typedef int on_shell_execve_t (char *user, int shell_level, char *cmd, char **argv);
-
-/* plugin plugin_init function handle type */
-typedef int plugin_init_t ();
-
-/* plugin plugin_uninit function handle type */
-typedef int plugin_uninit_t ();
-
 /* plugin on_shell_execve function name */
 static const char *on_shell_execve_function_name = "on_shell_execve";
 
@@ -132,27 +131,8 @@ static const char *plugin_init_function_name = "plugin_init";
 /* plugin plugin_uninit function name */
 static const char *plugin_uninit_function_name = "plugin_uninit";
 
-/* Plugin list node. */
-typedef struct plugin_node {
-    
-    /* Next plugin pointer. */
-  struct plugin_node *next;
-  
-    /* Plugin library handle. */
-  void *plugin_handle;
-  
-    /* Plugin on_shell_execve function handle. */
-  on_shell_execve_t *on_shell_execve;
-  
-    /* Plugin plugin_init function handle. */
-  plugin_init_t *plugin_init;
-  
-    /* Plugin plugin_uninit function handle. */
-  plugin_uninit_t *plugin_uninit;
-} PLUGIN_NODE;
-
 /* plugin handle for test */
-static PLUGIN_NODE *global_plugin_list = NULL;
+PLUGIN_NODE *global_plugin_list = NULL;
 
 /* Load plugin by plugin path */
 void
@@ -293,18 +273,25 @@ free_loaded_plugins()
     if ( global_plugin_list == NULL) {
         return;
     }
-    
+
     /* Walk to last plugin */
     PLUGIN_NODE **current_plugin_node = &global_plugin_list;
     while (*current_plugin_node != NULL) {
-        
+
         /* Unload plugin */
         (*current_plugin_node)->plugin_uninit();
         dlclose((*current_plugin_node)->plugin_handle);
-        
+
         /* Continue with next pligin */
+		PLUGIN_NODE* current_plugin_node_memory = *current_plugin_node;
         current_plugin_node = &((*current_plugin_node)->next);
+
+		/* Free plugin node memory */
+		free(current_plugin_node_memory);
     }
+	
+    /* Reset plugin list */
+	global_plugin_list = NULL;
 }
 
 /* Invoke loaded plugins */

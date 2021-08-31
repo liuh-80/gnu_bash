@@ -21,18 +21,47 @@
 #if !defined (_PLUGIN_H_)
 #define _PLUGIN_H_
 
-#include <stdc.h>
+#include "stdc.h"
 
 /* System-wide bash plugin configuration. */
 #define SYS_BASH_PLUGIN "/etc/bash.plugin"
 
 typedef enum { T_COMMAND } plugin_type_t;
 
+/* Bash plugin config. */
 typedef struct bash_plugin_conf
 {
 	const char *path;	/* path to binary */
 	char *name;		/* Used to distinguish plugins */
 } bash_plugin_conf_t;
+
+/* plugin on_shell_execve function handle type */
+typedef int on_shell_execve_t (char *user, int shell_level, char *cmd, char **argv);
+
+/* plugin plugin_init function handle type */
+typedef int plugin_init_t ();
+
+/* plugin plugin_uninit function handle type */
+typedef int plugin_uninit_t ();
+
+/* Plugin list node. */
+typedef struct plugin_node {
+    
+    /* Next plugin pointer. */
+  struct plugin_node *next;
+  
+    /* Plugin library handle. */
+  void *plugin_handle;
+  
+    /* Plugin on_shell_execve function handle. */
+  on_shell_execve_t *on_shell_execve;
+  
+    /* Plugin plugin_init function handle. */
+  plugin_init_t *plugin_init;
+  
+    /* Plugin plugin_uninit function handle. */
+  plugin_uninit_t *plugin_uninit;
+} PLUGIN_NODE;
 
 /* Load all plugins */
 extern void load_plugins __P((void));
